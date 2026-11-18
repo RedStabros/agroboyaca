@@ -402,7 +402,7 @@ export const TRACEABILITY_MATRIX = [
   { code: 'RF-08', name: 'Panel resumen exclusivo del productor autenticado', route: '/productor', hu: 'HU-25' },
   { code: 'RNF-01', name: 'Interfaz mobile-first y responsive multi-resolucion', route: '/', hu: 'HU-28' },
   { code: 'RNF-02', name: 'Integracion de modulos con persistencia verificable', route: '/lab-trl4', hu: 'HU-27' },
-  { code: 'RNF-03', name: 'Credenciales protegidas (hash SHA-256 / Supabase Auth)', route: '/lab-trl4', hu: 'HU-14, HU-26' },
+  { code: 'RNF-03', name: 'Credenciales protegidas con hash SHA-256 y salt', route: '/lab-trl4', hu: 'HU-14, HU-26' },
   { code: 'RNF-04', name: 'Tiempos de respuesta medidos bajo umbral de 2 segundos', route: '/lab-trl4', hu: 'HU-27' },
   { code: 'RNF-05', name: 'Integridad de inventario y aislamiento entre productores', route: '/lab-trl4', hu: 'HU-19, HU-26' },
   { code: 'RNF-06', name: 'Minimizacion de datos y consentimiento explicito', route: '/ingresar', hu: 'HU-11, HU-26' },

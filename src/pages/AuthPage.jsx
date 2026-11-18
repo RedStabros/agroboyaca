@@ -395,6 +395,15 @@ export function AuthPage() {
               </span>
             </label>
 
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-900"
+              >
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={submitting}

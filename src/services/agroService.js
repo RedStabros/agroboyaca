@@ -1,6 +1,5 @@
 import { generateSalt, hashPassword, verifyPassword } from '../lib/crypto.js'
 import { ORDER_STATUS_META, ORDER_TRANSITIONS } from '../lib/formatters.js'
-import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import {
   createInitialSeedUsers,
   DEMO_CREDENTIALS,
@@ -27,6 +26,7 @@ function writeStorage(key, value) {
   memoryFallback.set(key, value)
 }
 
+// Excluye el hash de la contraseña antes de devolver datos de usuario a la interfaz
 function sanitizeUser(user) {
   if (!user) return null
   const { passwordHash: _omit, ...safeUser } = user
@@ -55,7 +55,7 @@ async function loadDatabase() {
         return parsed
       }
     } catch {
-      // Si el almacenamiento local esta corrupto, se reinicia con la semilla base
+      // Si el almacenamiento local falla al leer, se reinicia con los datos iniciales
     }
   }
   const fresh = await buildInitialDatabase()
@@ -73,33 +73,7 @@ export async function resetDemoDatabase() {
   return fresh
 }
 
-export function getDataModeLabel() {
-  return isSupabaseConfigured() ? 'Supabase PostgreSQL (Nube)' : 'Laboratorio Local (Navegador)'
-}
-
 export async function getCurrentUser() {
-  if (isSupabaseConfigured()) {
-    const { data } = await supabase.auth.getUser()
-    if (!data?.user) return null
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    if (!profile) return null
-    return {
-      id: profile.id,
-      fullName: profile.full_name,
-      email: profile.email,
-      role: profile.role,
-      farmName: profile.farm_name,
-      municipality: profile.municipality,
-      city: profile.city,
-      dataConsentAccepted: profile.data_consent_accepted,
-    }
-  }
-
   const db = await loadDatabase()
   if (!db.sessionUserId) return null
   const found = db.users.find((u) => u.id === db.sessionUserId)
@@ -138,25 +112,6 @@ export async function registerUser(payload) {
     throw new Error('Debes aceptar la finalidad academica del uso de datos para registrarte.')
   }
 
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) throw new Error(error.message)
-    if (!data?.user) throw new Error('No fue posible completar el registro en Supabase.')
-
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id,
-      full_name: fullName,
-      email,
-      role,
-      farm_name: role === 'productor' ? farmName : null,
-      municipality: role === 'productor' ? municipality : city,
-      city: role === 'consumidor' ? city : municipality,
-      data_consent_accepted: true,
-    })
-    if (profileError) throw new Error(profileError.message)
-    return getCurrentUser()
-  }
-
   const db = await loadDatabase()
   const exists = db.users.some((u) => u.email.toLowerCase() === email)
   if (exists) {
@@ -192,15 +147,6 @@ export async function loginUser({ email, password }) {
     throw new Error('Ingresa tu correo electronico y contraseña.')
   }
 
-  if (isSupabaseConfigured()) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password: rawPassword,
-    })
-    if (error) throw new Error('Correo o contraseña incorrectos.')
-    return getCurrentUser()
-  }
-
   const db = await loadDatabase()
   const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail)
   if (!user) {
@@ -224,47 +170,12 @@ export async function loginDemoRole(role) {
 }
 
 export async function logoutUser() {
-  if (isSupabaseConfigured()) {
-    await supabase.auth.signOut()
-    return
-  }
   const db = await loadDatabase()
   db.sessionUserId = null
   saveDatabase(db)
 }
 
 export async function listCatalogProducts({ includeInactive = false, producerId = null } = {}) {
-  if (isSupabaseConfigured()) {
-    let query = supabase
-      .from('products')
-      .select('*, profiles!products_producer_id_fkey(full_name, farm_name)')
-      .order('created_at', { ascending: false })
-
-    if (!includeInactive) query = query.eq('active', true)
-    if (producerId) query = query.eq('producer_id', producerId)
-
-    const { data, error } = await query
-    if (error) throw new Error(error.message)
-
-    return (data || []).map((row) => ({
-      id: row.id,
-      producerId: row.producer_id,
-      producerName: row.profiles?.full_name || 'Productor',
-      farmName: row.profiles?.farm_name || 'Finca Boyaca',
-      name: row.name,
-      category: row.category,
-      practice: row.practice,
-      unit: row.unit,
-      price: row.price,
-      stock: row.stock,
-      municipality: row.municipality,
-      description: row.description,
-      imageUrl: row.image_url,
-      active: row.active,
-      createdAt: row.created_at,
-    }))
-  }
-
   const db = await loadDatabase()
   return db.products
     .filter((p) => (includeInactive ? true : p.active))
@@ -292,45 +203,6 @@ export async function saveProduct(actor, input, existingId = null) {
   if (!Number.isInteger(stock) || stock < 0) throw new Error('Las existencias no pueden ser negativas.')
   if (!unit) throw new Error('Indica la unidad de venta (ej. Kg, Libra, Atado).')
   if (description.length < 8) throw new Error('Agrega una breve descripcion del producto y su cosecha.')
-
-  if (isSupabaseConfigured()) {
-    if (existingId) {
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name,
-          category,
-          practice,
-          unit,
-          price,
-          stock,
-          municipality,
-          description,
-          image_url: imageUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingId)
-        .eq('producer_id', actor.id)
-      if (error) throw new Error(error.message)
-      return listCatalogProducts({ includeInactive: true, producerId: actor.id })
-    }
-
-    const { error } = await supabase.from('products').insert({
-      producer_id: actor.id,
-      name,
-      category,
-      practice,
-      unit,
-      price,
-      stock,
-      municipality,
-      description,
-      image_url: imageUrl,
-      active: true,
-    })
-    if (error) throw new Error(error.message)
-    return listCatalogProducts({ includeInactive: true, producerId: actor.id })
-  }
 
   const db = await loadDatabase()
   if (existingId) {
@@ -382,24 +254,6 @@ export async function toggleProductActive(actor, productId) {
     throw new Error('Solo un productor puede activar o desactivar productos.')
   }
 
-  if (isSupabaseConfigured()) {
-    const { data: current } = await supabase
-      .from('products')
-      .select('active, producer_id')
-      .eq('id', productId)
-      .single()
-    if (!current || current.producer_id !== actor.id) {
-      throw new Error('Acceso denegado sobre este producto.')
-    }
-    const { error } = await supabase
-      .from('products')
-      .update({ active: !current.active })
-      .eq('id', productId)
-      .eq('producer_id', actor.id)
-    if (error) throw new Error(error.message)
-    return !current.active
-  }
-
   const db = await loadDatabase()
   const product = db.products.find((p) => p.id === productId)
   if (!product) throw new Error('Producto no encontrado.')
@@ -420,16 +274,6 @@ export async function updateProductStock(actor, productId, newStock) {
     throw new Error('Las existencias deben ser un numero entero igual o mayor a cero.')
   }
 
-  if (isSupabaseConfigured()) {
-    const { error } = await supabase
-      .from('products')
-      .update({ stock: parsed, updated_at: new Date().toISOString() })
-      .eq('id', productId)
-      .eq('producer_id', actor.id)
-    if (error) throw new Error(error.message)
-    return parsed
-  }
-
   const db = await loadDatabase()
   const product = db.products.find((p) => p.id === productId)
   if (!product) throw new Error('Producto no encontrado.')
@@ -441,7 +285,7 @@ export async function updateProductStock(actor, productId, newStock) {
   return product
 }
 
-// Crea pedidos de prueba agrupados por productor para aislar la gestion entre fincas
+// Crea pedidos de prueba separados por productor para aislar la gestion entre fincas
 export async function createTestOrders(actor, cartItems, deliveryNote = '') {
   if (!actor) {
     throw new Error('Inicia sesion para confirmar un pedido de prueba.')
@@ -450,32 +294,10 @@ export async function createTestOrders(actor, cartItems, deliveryNote = '') {
     throw new Error('Tu canasta esta vacia.')
   }
 
-  if (isSupabaseConfigured()) {
-    const grouped = new Map()
-    const catalog = await listCatalogProducts()
-    for (const item of cartItems) {
-      const prod = catalog.find((p) => p.id === item.productId)
-      if (!prod) throw new Error('Producto no disponible.')
-      if (!grouped.has(prod.producerId)) grouped.set(prod.producerId, [])
-      grouped.get(prod.producerId).push({ product_id: prod.id, quantity: item.quantity })
-    }
-
-    const created = []
-    for (const items of grouped.values()) {
-      const { data, error } = await supabase.rpc('create_test_order', {
-        p_items: items,
-        p_delivery_note: deliveryNote,
-      })
-      if (error) throw new Error(error.message)
-      created.push(data)
-    }
-    return created
-  }
-
   const db = await loadDatabase()
   const groupedByProducer = new Map()
 
-  // Primera pasada: validar todo antes de descontar inventario (atomicidad)
+  // Validamos todas las existencias antes de descontar inventario
   for (const item of cartItems) {
     const qty = Number(item.quantity)
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -551,42 +373,6 @@ export async function createTestOrders(actor, cartItems, deliveryNote = '') {
 
 export async function listOrdersForUser(actor) {
   if (!actor) return []
-
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*), consumer:profiles!orders_consumer_id_fkey(full_name, city), producer:profiles!orders_producer_id_fkey(full_name, farm_name, municipality)')
-      .or(`consumer_id.eq.${actor.id},producer_id.eq.${actor.id}`)
-      .order('created_at', { ascending: false })
-    if (error) throw new Error(error.message)
-
-    return (data || []).map((o) => ({
-      id: o.id,
-      orderCode: o.order_code,
-      consumerId: o.consumer_id,
-      consumerName: o.consumer?.full_name || 'Consumidor',
-      consumerCity: o.consumer?.city || 'Bogota D.C.',
-      producerId: o.producer_id,
-      producerName: o.producer?.full_name || 'Productor',
-      farmName: o.producer?.farm_name || 'Finca Boyaca',
-      municipality: o.producer?.municipality || 'Boyaca',
-      status: o.status,
-      totalAmount: o.total_amount,
-      deliveryNote: o.delivery_note,
-      statusHistory: o.status_history || [],
-      items: (o.order_items || []).map((it) => ({
-        productId: it.product_id,
-        productName: it.product_name,
-        unit: it.unit,
-        unitPrice: it.unit_price,
-        quantity: it.quantity,
-        subtotal: it.subtotal,
-      })),
-      createdAt: o.created_at,
-      updatedAt: o.updated_at,
-    }))
-  }
-
   const db = await loadDatabase()
   return db.orders
     .filter((o) => (actor.role === 'productor' ? o.producerId === actor.id : o.consumerId === actor.id))
@@ -596,37 +382,6 @@ export async function listOrdersForUser(actor) {
 export async function advanceOrderStatus(actor, orderId, nextStatus) {
   if (!actor || actor.role !== 'productor') {
     throw new Error('Solo el productor responsable puede actualizar el estado del pedido.')
-  }
-
-  if (isSupabaseConfigured()) {
-    const { data: order, error: readErr } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single()
-    if (readErr || !order) throw new Error('Pedido no encontrado.')
-    if (order.producer_id !== actor.id) {
-      throw new Error('Acceso denegado sobre este pedido.')
-    }
-    const allowed = ORDER_TRANSITIONS[order.status] || []
-    if (!allowed.includes(nextStatus)) {
-      throw new Error(`Transicion no permitida de ${order.status} a ${nextStatus}.`)
-    }
-    const nextHistory = [
-      ...(order.status_history || []),
-      {
-        status: nextStatus,
-        at: new Date().toISOString(),
-        detail: ORDER_STATUS_META[nextStatus]?.description || 'Estado actualizado por el productor.',
-      },
-    ]
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: nextStatus, status_history: nextHistory, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
-      .eq('producer_id', actor.id)
-    if (error) throw new Error(error.message)
-    return nextStatus
   }
 
   const db = await loadDatabase()
@@ -663,24 +418,6 @@ export async function advanceOrderStatus(actor, orderId, nextStatus) {
 }
 
 export async function listReviews() {
-  if (isSupabaseConfigured()) {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*, profiles!reviews_consumer_id_fkey(full_name)')
-      .order('created_at', { ascending: false })
-    if (error) throw new Error(error.message)
-    return (data || []).map((r) => ({
-      id: r.id,
-      orderId: r.order_id,
-      productId: r.product_id,
-      consumerId: r.consumer_id,
-      consumerName: r.profiles?.full_name || 'Consumidor',
-      rating: r.rating,
-      comment: r.comment,
-      createdAt: r.created_at,
-    }))
-  }
-
   const db = await loadDatabase()
   return [...db.reviews].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
@@ -697,18 +434,6 @@ export async function submitReview(actor, { orderId, productId, rating, comment 
   }
   if (cleanComment.length < 4) {
     throw new Error('Escribe un comentario breve de al menos 4 caracteres.')
-  }
-
-  if (isSupabaseConfigured()) {
-    const { error } = await supabase.from('reviews').insert({
-      order_id: orderId,
-      product_id: productId,
-      consumer_id: actor.id,
-      rating: stars,
-      comment: cleanComment,
-    })
-    if (error) throw new Error(error.message)
-    return listReviews()
   }
 
   const db = await loadDatabase()

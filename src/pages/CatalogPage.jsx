@@ -228,13 +228,16 @@ export function CatalogPage() {
         )}
       </section>
 
-      <ProductModal
-        product={selectedProduct}
-        reviews={selectedProduct ? ratingByProduct.get(selectedProduct.id) || [] : []}
-        canBuy={canBuy}
-        onClose={() => setSelectedProduct(null)}
-        onAdd={addToCart}
-      />
+      {selectedProduct && (
+        <ProductModal
+          key={selectedProduct.id}
+          product={selectedProduct}
+          reviews={ratingByProduct.get(selectedProduct.id) || []}
+          canBuy={canBuy}
+          onClose={() => setSelectedProduct(null)}
+          onAdd={addToCart}
+        />
+      )}
     </div>
   )
 }

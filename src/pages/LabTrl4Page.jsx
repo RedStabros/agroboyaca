@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
 import { DESIGN_FINDINGS, TRACEABILITY_MATRIX } from '../data/seedData.js'
-import { getDataModeLabel, runTrl4LaboratorySuite } from '../services/agroService.js'
+import { runTrl4LaboratorySuite } from '../services/agroService.js'
 
 export function LabTrl4Page() {
   const { handleResetDemo } = useApp()
@@ -45,7 +45,7 @@ export function LabTrl4Page() {
     if (!report) return
     const payload = {
       project: 'AgroBoyaca TRL 4',
-      environment: getDataModeLabel(),
+      environment: 'Navegador local (localStorage)',
       viewport: `${viewport.width}x${viewport.height}`,
       ...report,
     }
@@ -97,12 +97,11 @@ export function LabTrl4Page() {
           </div>
         </div>
 
-        {/* Telemetria del entorno */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div className="rounded-xl border border-[#DCE5DD] bg-[#F6F8F6] p-3.5">
-            <span className="text-xs font-semibold text-[#4A5A4E]">Motor de persistencia activo</span>
+            <span className="text-xs font-semibold text-[#4A5A4E]">Persistencia de pruebas</span>
             <span className="mt-1 block text-sm font-extrabold text-[#18221A]">
-              {getDataModeLabel()}
+              Local en navegador (sin servidor externo)
             </span>
           </div>
           <div className="rounded-xl border border-[#DCE5DD] bg-[#F6F8F6] p-3.5">
@@ -123,7 +122,6 @@ export function LabTrl4Page() {
         </div>
       </section>
 
-      {/* Resultados de la ejecucion en vivo */}
       {report && (
         <section
           aria-label="Resultados de pruebas TRL 4"
@@ -175,7 +173,6 @@ export function LabTrl4Page() {
         </section>
       )}
 
-      {/* Hallazgos de diseño detectados y corregidos */}
       <section className="rounded-2xl border border-[#DCE5DD] bg-white p-5 sm:p-6 shadow-xs space-y-4">
         <h2 className="text-lg font-extrabold text-[#18221A]">
           Deteccion de problemas de diseño y ajustes (Maqueta previa a Prototipo TRL 4)
@@ -201,7 +198,6 @@ export function LabTrl4Page() {
         </div>
       </section>
 
-      {/* Matriz completa de los 8 RF y 8 RNF */}
       <section className="rounded-2xl border border-[#DCE5DD] bg-white p-5 sm:p-6 shadow-xs space-y-4">
         <h2 className="text-lg font-extrabold text-[#18221A]">
           Trazabilidad de requerimientos (8 RF y 8 RNF)

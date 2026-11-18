@@ -5,11 +5,11 @@ Plataforma web responsive para apoyar la comercialización directa de productos 
 
 ## Tecnologías
 
-- React 19 + Vite
+- React 19 + JavaScript
+- Vite
 - Tailwind CSS v4
 - React Router DOM
 - Lucide React
-- Supabase (PostgreSQL + Auth + RLS) con modo de laboratorio local incluido
 - Vitest para pruebas unitarias y de integración
 
 ## Ejecución en local
@@ -19,7 +19,7 @@ pnpm install
 pnpm dev
 ```
 
-Para ejecutar la batería de pruebas de laboratorio TRL 4 desde terminal:
+Para ejecutar las pruebas de validación desde terminal:
 
 ```bash
 pnpm test
@@ -33,21 +33,13 @@ pnpm build
 
 ## Cuentas demo de prueba rápida
 
-En la pantalla `/ingresar` existen botones de acceso rápido con permisos acotados por rol:
+En la pantalla `/ingresar` hay botones de acceso rápido por rol:
 
-- **Productor demo:** `productor.demo@agroboyaca.co` / `AgroBoyaca2026*` (Don Juan, Finca La Esperanza - Chinavita)
+- **Productor demo:** `productor.demo@agroboyaca.co` / `AgroBoyaca2026*` (Juan Carlos Mendoza, Finca La Esperanza - Chinavita)
 - **Consumidor demo:** `consumidor.demo@agroboyaca.co` / `AgroBoyaca2026*` (Camila Rojas - Bogotá D.C.)
-
-## Conexión opcional con Supabase
-
-La aplicación funciona de inmediato en modo laboratorio local usando persistencia en el navegador. Si deseas conectarla a PostgreSQL real:
-
-1. Crea un proyecto en Supabase.
-2. Ejecuta en el SQL Editor el archivo [supabase/schema.sql](supabase/schema.sql) y luego [supabase/seed.sql](supabase/seed.sql).
-3. Copia `.env.example` a `.env` y asigna `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Nunca expongas la clave `service_role` en el cliente.
 
 ## Despliegue en Cloudflare Pages
 
 1. Sube este repositorio a GitHub.
 2. En Cloudflare Pages conecta el repositorio con comando de compilación `pnpm build` y directorio de salida `dist`.
-3. El archivo `public/_redirects` ya resuelve las rutas SPA al recargar el navegador.
+3. El archivo `public/_redirects` resuelve las rutas SPA al recargar el navegador.
