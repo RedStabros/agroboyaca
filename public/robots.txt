@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://agroboyaca.pages.dev/sitemap.xml

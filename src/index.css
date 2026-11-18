@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/manrope/800.css";
+
+@layer base {
+  :root {
+    --color-brand: #2E7D32;
+    --color-brand-dark: #236327;
+    --color-brand-soft: #EAF4EB;
+    --color-earth: #9A5B08;
+    --color-earth-soft: #FFF4E5;
+    --color-canvas: #F6F8F6;
+    --color-surface: #FFFFFF;
+    --color-border: #DCE5DD;
+    --color-ink: #18221A;
+    --color-ink-muted: #4A5A4E;
+  }
+
+  html {
+    font-family: "Manrope", system-ui, -apple-system, sans-serif;
+    color: var(--color-ink);
+    background-color: var(--color-canvas);
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background-color: #C8E6C9;
+    color: #143618;
+  }
+
+  /* Evita saltos horizontales al actualizar precios y cantidades */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Barra de desplazamiento discreta en contenedores de chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
